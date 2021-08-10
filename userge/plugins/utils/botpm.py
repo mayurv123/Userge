@@ -10,17 +10,17 @@
 #
 # Author (C) - @Krishna_Singhal (https://github.com/Krishna-Singhal)
 
+import asyncio
 import os
 import re
-import wget
 import time
-import asyncio
 from typing import Optional, List, Dict
 
+import wget
+from pyrogram.errors import UserIsBlocked, FloodWait
 from pyrogram.types import (
     Message as PyroMessage, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 )
-from pyrogram.errors import UserIsBlocked, FloodWait
 
 from userge import userge, Message, Config, filters, get_collection, pool
 from userge.utils import SafeDict, time_formatter
@@ -77,7 +77,7 @@ async def _init():
     'header': "Bot Pm handlers like Livegram Bot.",
     'description': "You can use this command to enable/disable Bot Pm.\n"
                    "You can see all the settings of your bot after enabling "
-                   "bot pm and hit /start in your Bot DM."
+                   "bot pm and hit /start in your Bot DM.\n"
                    "Note: You have to us Bot mode or Dual mode if you want to enable Bot Pm.",
     'usage': "{tr}botpm"})
 async def bot_pm(msg: Message):
@@ -103,8 +103,7 @@ if userge.has_bot:
     bot = userge.bot
 
     @bot.on_message(
-        ~bannedFilter & ~filters.edited & filters.private & filters.command("start")
-    )
+        ~bannedFilter & ~filters.edited & filters.private & filters.command("start"), group=1)
     async def start(_, msg: PyroMessage):
         user_id = msg.from_user.id
         user_dict = await bot.get_user_dict(user_id)
@@ -156,8 +155,10 @@ if userge.has_bot:
             return await msg.reply(out_str, parse_mode='html', disable_web_page_preview=True)
         await send_start_text(msg, text, path, markup)
 
-    @bot.on_message(filters.user(userge_id) & filters.private & filters.command("settext"))
+    @bot.on_message(
+        filters.user(userge_id) & filters.private & filters.command("settext"), group=1)
     async def set_text(_, msg: PyroMessage):
+        global START_TEXT  # pylint: disable=global-statement
         text = msg.text.split(' ', maxsplit=1)[1] if ' ' in msg.text else ''
         replied = msg.reply_to_message
         if replied:
@@ -165,12 +166,13 @@ if userge.has_bot:
         if not text:
             await msg.reply("Text not found!")
         else:
+            START_TEXT = text
             await SAVED_SETTINGS.update_one(
                 {"_id": "BOT_START_TEXT"}, {"$set": {"data": text}}, upsert=True
             )
             await msg.reply("Custom Bot Pm text Saved Successfully.")
 
-    @bot.on_message(filters.user(userge_id) & filters.private & filters.command("pmban"))
+    @bot.on_message(filters.user(userge_id) & filters.private & filters.command("pmban"), group=1)
     async def pm_ban(_, msg: PyroMessage):
         global _BANNED_USERS  # pylint: disable=global-statement
         replied = msg.reply_to_message
@@ -208,7 +210,8 @@ if userge.has_bot:
             except Exception:
                 pass
 
-    @bot.on_message(filters.user(userge_id) & filters.private & filters.command("pmunban"))
+    @bot.on_message(
+        filters.user(userge_id) & filters.private & filters.command("pmunban"), group=1)
     async def pm_unban(_, msg: PyroMessage):
         global _BANNED_USERS  # pylint: disable=global-statement
         replied = msg.reply_to_message
@@ -247,11 +250,11 @@ if userge.has_bot:
                 pass
 
     @bot.on_message(
-        botPmFilter & ~bannedFilter & ~filters.edited & filters.private & filters.incoming, group=2
+        botPmFilter & ~bannedFilter & ~filters.edited & filters.private & filters.incoming, group=1
     )
     async def bot_pm_handler(_, msg: PyroMessage):
         if not hasattr(msg, '_client'):
-            return
+            setattr(msg, '_client', _)
         user = msg.from_user
         if user.id == userge_id:
             await handle_reply(msg)

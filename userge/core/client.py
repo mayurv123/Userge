@@ -10,24 +10,27 @@
 
 __all__ = ['Userge']
 
-import os
-import time
-import signal
 import asyncio
+import functools
 import importlib
+import inspect
+import os
+import signal
+import threading
+import time
 from types import ModuleType
 from typing import List, Awaitable, Any, Optional, Union
 
-from pyrogram import idle
-from pyrogram.types import User
+from pyrogram import idle, types
+from pyrogram.methods import Methods as RawMethods
 
 from userge import logging, Config, logbot
+from userge.plugins import get_all_plugins
 from userge.utils import time_formatter
 from userge.utils.exceptions import UsergeBotNotFound
-from userge.plugins import get_all_plugins
-from .methods import Methods
-from .ext import RawClient, pool
 from .database import get_collection
+from .ext import RawClient, pool
+from .methods import Methods
 
 _LOG = logging.getLogger(__name__)
 _LOG_STR = "<<<!  #####  %s  #####  !>>>"
@@ -65,7 +68,7 @@ async def _complete_init_tasks() -> None:
 
 class _AbstractUserge(Methods, RawClient):
     def __init__(self, **kwargs) -> None:
-        self._me: Optional[User] = None
+        self._me: Optional[types.User] = None
         super().__init__(**kwargs)
 
     @property
@@ -135,7 +138,7 @@ class _AbstractUserge(Methods, RawClient):
         await self.finalize_load()
         return len(reloaded)
 
-    async def get_me(self, cached: bool = True) -> User:
+    async def get_me(self, cached: bool = True) -> types.User:
         if not cached or self._me is None:
             self._me = await super().get_me()
         return self._me
@@ -151,7 +154,7 @@ class _AbstractUserge(Methods, RawClient):
     def __eq__(self, o: object) -> bool:
         return isinstance(o, _AbstractUserge) and self.id == o.id
 
-    def __hash__(self) -> int:
+    def __hash__(self) -> int:  # pylint: disable=W0235
         return super().__hash__()
 
 
@@ -304,3 +307,50 @@ class Userge(_AbstractUserge):
             _close_loop()
             if _SEND_SIGNAL:
                 os.kill(os.getpid(), signal.SIGUSR1)
+
+
+def _un_wrapper(obj, name, function):
+    loop = asyncio.get_event_loop()
+
+    @functools.wraps(function)
+    def _wrapper(*args, **kwargs):
+        coroutine = function(*args, **kwargs)
+        if (threading.current_thread() is not threading.main_thread()
+                and inspect.iscoroutine(coroutine)):
+            async def _():
+                fut = asyncio.run_coroutine_threadsafe(coroutine, loop)
+                _loop = asyncio.get_running_loop()
+                _fut = _loop.create_future()
+
+                def _on_done(_):
+                    try:
+                        res = fut.result()
+                    except Exception as e:  # pylint: disable=broad-except
+                        _loop.call_soon_threadsafe(
+                            lambda _e=e: None if _fut.done() else _fut.set_exception(_e))
+                    else:
+                        _loop.call_soon_threadsafe(
+                            lambda _res=res: None if _fut.done() else _fut.set_result(_res))
+                fut.add_done_callback(_on_done)
+                return await _fut
+            return _()
+        return coroutine
+
+    setattr(obj, name, _wrapper)
+
+
+def _un_wrap(source):
+    for name in dir(source):
+        if name.startswith("_"):
+            continue
+        wrapped = getattr(getattr(source, name), '__wrapped__', None)
+        if wrapped and (inspect.iscoroutinefunction(wrapped)
+                        or inspect.isasyncgenfunction(wrapped)):
+            _un_wrapper(source, name, wrapped)
+
+
+_un_wrap(RawMethods)
+for class_name in dir(types):
+    cls = getattr(types, class_name)
+    if inspect.isclass(cls):
+        _un_wrap(cls)
