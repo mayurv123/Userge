@@ -47,7 +47,7 @@ START_TEXT = " Hello {mention}, you can contact me using this Bot."
 START_MEDIA = os.environ.get("START_MEDIA", None)
 
 botPmFilter = filters.create(lambda _, __, ___: BOT_PM)
-bannedFilter = filters.create(lambda _, __, ___: filters.user(_BANNED_USERS))
+bannedFilter = filters.create(lambda _, __, ___: ___.chat.id in _BANNED_USERS)
 
 
 async def _init():
@@ -85,10 +85,7 @@ async def bot_pm(msg: Message):
     global BOT_PM  # pylint: disable=global-statement
     if not userge.has_bot:
         return await msg.err("You have to us Bot mode or Dual mode if you want to enable Bot Pm.")
-    if BOT_PM:
-        BOT_PM = False
-    else:
-        BOT_PM = True
+    BOT_PM = not BOT_PM
     await SAVED_SETTINGS.update_one(
         {"_id": "BOT_PM"}, {"$set": {"data": BOT_PM}}, upsert=True
     )
@@ -138,6 +135,7 @@ if userge.has_bot:
             ])
             await send_start_text(msg, text, path, markup)
             return
+        text = "Hey, you can configure me here."
         markup = InlineKeyboardMarkup([[InlineKeyboardButton("Settings", callback_data="stngs")]])
         cmd = msg.command[1] if len(msg.command) > 1 else ''
         if cmd and ' ' not in msg.text:
@@ -185,9 +183,9 @@ if userge.has_bot:
             if replied:
                 if replied.forward_from:
                     user_id = replied.forward_from.id
+                elif replied.message_id not in _U_ID_F_M_ID:
+                    return await msg.reply("You can't reply old message of this user.")
                 else:
-                    if replied.message_id not in _U_ID_F_M_ID:
-                        return await msg.reply("You can't reply old message of this user.")
                     user_id = _U_ID_F_M_ID.get(replied.message_id)
             else:
                 # noinspection PyBroadException
@@ -224,9 +222,9 @@ if userge.has_bot:
             if replied:
                 if replied.forward_from:
                     user_id = replied.forward_from.id
+                elif replied.message_id not in _U_ID_F_M_ID:
+                    return await msg.reply("You can't reply old message of this user.")
                 else:
-                    if replied.message_id not in _U_ID_F_M_ID:
-                        return await msg.reply("You can't reply old message of this user.")
                     user_id = _U_ID_F_M_ID.get(replied.message_id)
             else:
                 # noinspection PyBroadException
@@ -312,10 +310,7 @@ After Adding a var, you can see your media when you start your Bot.
                 reply_markup=mp
             )
         elif cq.data == "en_dis_bot_pm":
-            if BOT_PM:
-                BOT_PM = False
-            else:
-                BOT_PM = True
+            BOT_PM = not BOT_PM
             await SAVED_SETTINGS.update_one(
                 {"_id": "BOT_PM"}, {"$set": {"data": BOT_PM}}, upsert=True
             )
@@ -490,9 +485,9 @@ After Adding a var, you can see your media when you start your Bot.
         else:
             if replied.forward_from:
                 reply_id = replied.forward_from.id
+            elif replied.message_id not in _U_ID_F_M_ID:
+                return await msg.reply("You can't reply old message of this user.")
             else:
-                if replied.message_id not in _U_ID_F_M_ID:
-                    return await msg.reply("You can't reply old message of this user.")
                 reply_id = _U_ID_F_M_ID.get(replied.message_id)
             try:
                 if msg.text:
