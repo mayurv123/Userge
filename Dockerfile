@@ -5,6 +5,8 @@ FROM python:3.9
 WORKDIR /app/
 
 RUN apt -qq update
+RUN apt-get -qq update && \
+    DEBIAN_FRONTEND="noninteractive" apt-get -qq install -y tzdata aria2 git python3 python3-pip
 RUN apt -qq install -y --no-install-recommends \
     curl \
     git \
