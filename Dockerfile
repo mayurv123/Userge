@@ -4,18 +4,17 @@ FROM python:3.9
 # set the working directory in the container
 WORKDIR /app/
 
-RUN apt -qq update
 RUN apt-get -qq update && \
-    DEBIAN_FRONTEND="noninteractive" apt-get -qq install -y tzdata aria2 git python3 python3-pip
-RUN apt -qq install -y --no-install-recommends \
-    curl \
-    git \
-    gnupg2 \
-    unzip \
-    wget \
-    ffmpeg \
-    jq \
-    mkvtoolnix
+    DEBIAN_FRONTEND="noninteractive" apt-get -qq install -y tzdata aria2 git python3 python3-pip \
+    locales python3-lxml \
+    curl pv jq ffmpeg streamlink rclone \
+    wget mediainfo git zip unzip \
+    p7zip-full p7zip-rar \
+    libcrypto++-dev libssl-dev \
+    libc-ares-dev libcurl4-openssl-dev \
+    libsqlite3-dev libsodium-dev && \
+    curl -L https://github.com/jaskaranSM/megasdkrest/releases/download/v0.1/megasdkrest -o /usr/local/bin/megasdkrest && \
+    chmod +x /usr/local/bin/megasdkrest
 
 # install chrome
 RUN mkdir -p /tmp/ && \
