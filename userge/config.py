@@ -1,6 +1,6 @@
 # pylint: disable=missing-module-docstring
 #
-# Copyright (C) 2020-2021 by UsergeTeam@Github, < https://github.com/UsergeTeam >.
+# Copyright (C) 2020-2022 by UsergeTeam@Github, < https://github.com/UsergeTeam >.
 #
 # This file is part of < https://github.com/UsergeTeam/Userge > project,
 # and is released under the "GNU v3.0 License Agreement".
@@ -83,6 +83,7 @@ class Config:
     ALLOWED_COMMANDS: Set[str] = set()
     IGNORE_VERIFIED_CHATS = True
     ANTISPAM_SENTRY = False
+    FBAN_CHAT_ID = int(os.environ.get("FBAN_CHAT_ID") or 0)
     RUN_DYNO_SAVER = False
     HEROKU_APP = heroku3.from_key(HEROKU_API_KEY).apps()[HEROKU_APP_NAME] \
         if HEROKU_ENV and HEROKU_API_KEY and HEROKU_APP_NAME else None
