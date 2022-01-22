@@ -12,7 +12,8 @@ RUN apt -qq install -y --no-install-recommends \
     unzip \
     wget \
     ffmpeg \
-    jq
+    jq \
+    mkvtoolnix
 
 # install chrome
 RUN mkdir -p /tmp/ && \
@@ -55,7 +56,9 @@ RUN sh -c 'echo "deb https://mkvtoolnix.download/debian/ buster main" >> /etc/ap
 COPY . .
 
 # install dependencies
-RUN pip install -r requirements.txt
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
 
 # command to run on container start
 RUN git init
